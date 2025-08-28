@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, TouchableOpacity, Text, Alert, StyleSheet, Platform } from 'react-native';
-import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
-import { initWhisper } from 'whisper.rn';
+import { Audio } from 'expo-av';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { initWhisper, AudioSessionIos } from 'whisper.rn';
 import { modelDownloadService } from '../services/modelDownloadService';
 
 interface VoiceRecorderProps {
@@ -94,6 +94,8 @@ export default function VoiceRecorder({ onTranscriptionComplete, disabled = fals
         console.log('Initializing Whisper context with model:', modelPath);
         whisperContextRef.current = await initWhisper({
           filePath: modelPath,
+          useGpu: true,
+          useVad: true, // Enable Voice Activity Detection
         });
         console.log('Whisper context created successfully');
       }
@@ -141,16 +143,56 @@ export default function VoiceRecorder({ onTranscriptionComplete, disabled = fals
         return;
       }
 
-      // Configure audio mode
+      // Configure audio mode for optimal speech recording
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+        staysActiveInBackground: false,
       });
 
-      // Start recording
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      // Configure iOS audio session for speech recording
+      if (Platform.OS === 'ios') {
+        try {
+          await AudioSessionIos.setCategory(
+            AudioSessionIos.Category.PlayAndRecord,
+            [AudioSessionIos.CategoryOption.DefaultToSpeaker]
+          );
+          await AudioSessionIos.setMode(AudioSessionIos.Mode.SpokenAudio);
+          await AudioSessionIos.setActive(true);
+        } catch (error) {
+          console.warn('Failed to configure iOS audio session:', error);
+        }
+      }
+
+      // Start recording with WAV format optimized for speech recognition
+      const recordingOptions = {
+        android: {
+          extension: '.wav',
+          outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+          audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 16000,
+        },
+        ios: {
+          extension: '.wav',
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 16000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/wav',
+          bitsPerSecond: 16000,
+        },
+      };
+      
+      const { recording } = await Audio.Recording.createAsync(recordingOptions);
       
       recordingRef.current = recording;
       setState(prev => ({ ...prev, isRecording: true, duration: 0 }));
@@ -195,14 +237,57 @@ export default function VoiceRecorder({ onTranscriptionComplete, disabled = fals
         return;
       }
       
-      // Transcribe the audio
-      const { promise } = whisperContextRef.current.transcribe(uri, { language: 'en' });
-      const { result } = await promise;
+      // Transcribe the audio with enhanced options and VAD
+        const transcribeOptions = {
+          language: 'auto', // Auto-detect language
+          task: 'transcribe',
+          temperature: 0.0, // More deterministic output
+          best_of: 1,
+          beam_size: 1,
+          word_thold: 0.01,
+          entropy_thold: 2.4,
+          logprob_thold: -1.0,
+          no_speech_thold: 0.6, // Lower threshold for better speech detection
+          compression_ratio_thold: 2.4,
+          condition_on_previous_text: false,
+          initial_prompt: '', // Can add context if needed
+          // VAD options for better speech detection
+          vad_thold: 0.6,
+          vad_freq_thold: 100,
+          vad_grace_sec: 2.0,
+        };
       
-      if (result && result.trim()) {
-        onTranscriptionComplete(result.trim());
-      } else {
-        Alert.alert('No Speech Detected', 'No speech was detected in the recording.');
+      console.log('Starting transcription with options:', transcribeOptions);
+      
+      try {
+        const { promise } = whisperContextRef.current.transcribe(uri, transcribeOptions);
+        const { result } = await promise;
+        
+        console.log('Transcription result:', result);
+        console.log('Transcription result type:', typeof result);
+        console.log('Transcription result length:', result?.length || 0);
+        
+        // Check for common non-speech results
+        const nonSpeechPatterns = [
+          /^\s*$/,  // Empty or whitespace only
+          /^\s*\[.*\]\s*$/,  // Only sound effects like [Music]
+          /^\s*music\s*$/i,  // Just "music"
+          /^\s*\(.*\)\s*$/,  // Only parenthetical content
+        ];
+        
+        const isNonSpeech = nonSpeechPatterns.some(pattern => pattern.test(result || ''));
+        
+        if (result && result.trim() && !isNonSpeech) {
+          console.log('Valid speech detected:', result.trim());
+          onTranscriptionComplete(result.trim());
+        } else {
+          console.warn('No valid speech detected. Result:', result);
+          console.warn('Audio file URI:', uri);
+          Alert.alert('No Speech Detected', 'No speech was detected in the recording. Try speaking closer to the microphone.');
+        }
+      } catch (transcriptionError) {
+        console.error('Transcription failed:', transcriptionError);
+        Alert.alert('Error', `Transcription failed: ${transcriptionError.message}`);
       }
       
     } catch (error) {
