@@ -1,8 +1,9 @@
+import { useThemeColor } from '@/hooks/useThemeColor';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { initWhisper, AudioSessionIos } from 'whisper.rn';
+import { AudioSessionIos, initWhisper } from 'whisper.rn';
 import { modelDownloadService } from '../services/modelDownloadService';
 
 interface VoiceRecorderProps {
@@ -95,7 +96,6 @@ export default function VoiceRecorder({ onTranscriptionComplete, disabled = fals
         whisperContextRef.current = await initWhisper({
           filePath: modelPath,
           useGpu: true,
-          useVad: true, // Enable Voice Activity Detection
         });
         console.log('Whisper context created successfully');
       }
@@ -285,7 +285,7 @@ export default function VoiceRecorder({ onTranscriptionComplete, disabled = fals
           console.warn('Audio file URI:', uri);
           Alert.alert('No Speech Detected', 'No speech was detected in the recording. Try speaking closer to the microphone.');
         }
-      } catch (transcriptionError) {
+      } catch (transcriptionError: any) {
         console.error('Transcription failed:', transcriptionError);
         Alert.alert('Error', `Transcription failed: ${transcriptionError.message}`);
       }
@@ -338,8 +338,12 @@ export default function VoiceRecorder({ onTranscriptionComplete, disabled = fals
     }
   };
 
+  // Theme colors
+  const backgroundColor = useThemeColor({ light: '#ffffff', dark: '#000000' }, 'background');
+  const textColor = useThemeColor({ light: '#000000', dark: '#ffffff' }, 'text');
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       <TouchableOpacity
         style={[styles.recordButton, { backgroundColor: getButtonColor() }]}
         onPress={handlePress}
@@ -353,7 +357,7 @@ export default function VoiceRecorder({ onTranscriptionComplete, disabled = fals
         />
       </TouchableOpacity>
       
-      <Text style={styles.statusText}>
+      <Text style={[styles.statusText, { color: textColor }]}>
         {getStatusText()}
       </Text>
     </View>
@@ -380,7 +384,6 @@ const styles = StyleSheet.create({
   statusText: {
     marginTop: 8,
     fontSize: 12,
-    color: '#666',
     textAlign: 'center',
   },
 });

@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotes } from '../hooks/useNotes';
 import { BiometricAuthService, BiometricCapabilities } from '../services/biometricAuth';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 const Settings = () => {
   const { deleteAllNotes } = useNotes();
@@ -22,6 +23,14 @@ const Settings = () => {
     isEnrolled: false,
   });
   const [loading, setLoading] = useState(true);
+
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const tintColor = useThemeColor({}, 'tint');
+  const cardBackgroundColor = useThemeColor({ light: '#fff', dark: '#1c1c1e' }, 'background');
+  const borderColor = useThemeColor({ light: '#e0e0e0', dark: '#38383a' }, 'text');
+  const secondaryTextColor = useThemeColor({ light: '#666', dark: '#8e8e93' }, 'text');
 
   useEffect(() => {
     initializeBiometricSettings();
@@ -112,27 +121,27 @@ const Settings = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      <View style={[styles.header, { backgroundColor: cardBackgroundColor, borderBottomColor: borderColor }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>Settings</Text>
         <View style={styles.placeholder} />
       </View>
 
       <View style={styles.content}>
         {/* Security Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Security</Text>
+        <View style={[styles.section, { backgroundColor: cardBackgroundColor }]}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>Security</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Biometric Authentication</Text>
-              <Text style={styles.settingDescription}>
+              <Text style={[styles.settingLabel, { color: textColor }]}>Biometric Authentication</Text>
+              <Text style={[styles.settingDescription, { color: secondaryTextColor }]}>
                 {biometricCapabilities.isAvailable && biometricCapabilities.isEnrolled
                   ? `Use ${BiometricAuthService.getAuthenticationTypeNames(biometricCapabilities.supportedTypes).join(' or ')} to secure your notes`
                   : biometricCapabilities.isAvailable
@@ -145,15 +154,15 @@ const Settings = () => {
               value={biometricEnabled}
               onValueChange={handleBiometricToggle}
               disabled={loading || !biometricCapabilities.isAvailable || !biometricCapabilities.isEnrolled}
-              trackColor={{ false: '#e0e0e0', true: '#007AFF' }}
+              trackColor={{ false: borderColor, true: tintColor }}
               thumbColor={biometricEnabled ? '#fff' : '#f4f3f4'}
             />
           </View>
         </View>
 
         {/* Data Management Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data Management</Text>
+        <View style={[styles.section, { backgroundColor: cardBackgroundColor }]}>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>Data Management</Text>
           
           <TouchableOpacity
             style={styles.deleteButton}
@@ -163,7 +172,7 @@ const Settings = () => {
             <Text style={styles.deleteButtonText}>Delete All Thoughts</Text>
           </TouchableOpacity>
           
-          <Text style={styles.warningText}>
+          <Text style={[styles.warningText, { color: secondaryTextColor }]}>
             This will permanently delete all your thoughts. This action cannot be undone.
           </Text>
         </View>
@@ -175,7 +184,6 @@ const Settings = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
     flexDirection: 'row',
@@ -183,9 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
   backButton: {
     padding: 8,
@@ -193,7 +199,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
   },
   placeholder: {
     width: 40,
@@ -203,7 +208,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   section: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -211,7 +215,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 16,
   },
   deleteButton: {
@@ -232,7 +235,6 @@ const styles = StyleSheet.create({
   },
   warningText: {
     fontSize: 12,
-    color: '#666',
     textAlign: 'center',
     lineHeight: 16,
   },
@@ -249,12 +251,10 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
     marginBottom: 4,
   },
   settingDescription: {
     fontSize: 12,
-    color: '#666',
     lineHeight: 16,
   },
 });

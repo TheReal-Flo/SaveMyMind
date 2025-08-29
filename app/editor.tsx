@@ -16,12 +16,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNotes } from '../hooks/useNotes';
 import { NoteInput } from '../types';
 import VoiceRecorderWrapper from '../components/VoiceRecorderWrapper';
+import { useThemeColor } from '../hooks/useThemeColor';
 
 const AUTO_SAVE_DELAY = 2000; // 2 seconds
 
 export default function NoteEditorScreen() {
   const { noteId } = useLocalSearchParams<{ noteId?: string }>();
   const { getNoteById, addNote, updateNoteById, deleteNote, loading: notesLoading } = useNotes();
+  
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const tintColor = useThemeColor({}, 'tint');
+  const iconColor = useThemeColor({}, 'icon');
   
   const [title, setTitle] = useState('New thought');
   const [content, setContent] = useState('');
@@ -33,6 +40,12 @@ export default function NoteEditorScreen() {
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialLoadRef = useRef(true);
   const currentNoteIdRef = useRef<string | null>(null);
+
+  // Theme colors - all hooks must be called at the top level
+  const borderColor = useThemeColor({ light: '#e1e5e9', dark: '#333' }, 'background');
+  const lightBorderColor = useThemeColor({ light: '#f0f0f0', dark: '#333' }, 'background');
+  const placeholderColor = useThemeColor({ light: '#999', dark: '#666' }, 'icon');
+  const voiceContainerBg = useThemeColor({ light: '#fafafa', dark: '#1a1a1a' }, 'background');
 
   // Load existing note if editing - wait for notes to finish loading
   useEffect(() => {
@@ -189,10 +202,10 @@ export default function NoteEditorScreen() {
   // Show loading while notes are being loaded from storage or while processing
   if (notesLoading || isLoading || initialLoadRef.current) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>
+          <ActivityIndicator size="large" color={tintColor} />
+          <Text style={[styles.loadingText, { color: textColor }]}>
             {notesLoading ? 'Loading thoughts...' : 'Loading...'}
           </Text>
         </View>
@@ -201,22 +214,22 @@ export default function NoteEditorScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
       <KeyboardAvoidingView 
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: borderColor }]}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+            <Ionicons name="arrow-back" size={24} color={tintColor} />
           </TouchableOpacity>
           
           <View style={styles.headerCenter}>
             {isSaving && (
               <View style={styles.savingIndicator}>
-                <ActivityIndicator size="small" color="#666" />
-                <Text style={styles.savingText}>Saving...</Text>
+                <ActivityIndicator size="small" color={iconColor} />
+                <Text style={[styles.savingText, { color: iconColor }]}>Saving...</Text>
               </View>
             )}
           </View>
@@ -227,13 +240,13 @@ export default function NoteEditorScreen() {
         </View>
 
         {/* Title Input */}
-        <View style={styles.titleContainer}>
+        <View style={[styles.titleContainer, { borderBottomColor: lightBorderColor }]}>
           <TextInput
-            style={styles.titleInput}
+            style={[styles.titleInput, { color: textColor }]}
             value={title}
             onChangeText={handleTitleChange}
             placeholder="Thought title"
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
             multiline={false}
             returnKeyType="next"
             blurOnSubmit={false}
@@ -243,11 +256,11 @@ export default function NoteEditorScreen() {
         {/* Content Input */}
         <View style={styles.contentContainer}>
           <TextInput
-            style={styles.contentInput}
+            style={[styles.contentInput, { color: textColor }]}
             value={content}
             onChangeText={handleContentChange}
             placeholder="Start writing your thought..."
-            placeholderTextColor="#999"
+            placeholderTextColor={placeholderColor}
             multiline
             textAlignVertical="top"
             scrollEnabled
@@ -255,7 +268,10 @@ export default function NoteEditorScreen() {
         </View>
 
         {/* Voice Recorder */}
-        <View style={styles.voiceRecorderContainer}>
+        <View style={[styles.voiceRecorderContainer, { 
+          borderTopColor: lightBorderColor,
+          backgroundColor: voiceContainerBg
+        }]}>
           <VoiceRecorderWrapper
             onTranscriptionComplete={handleTranscriptionComplete}
             disabled={isSaving || isLoading}
@@ -269,7 +285,6 @@ export default function NoteEditorScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -281,7 +296,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e5e9',
   },
   backButton: {
     padding: 8,
@@ -297,7 +311,6 @@ const styles = StyleSheet.create({
   savingText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#666',
   },
   deleteButton: {
     padding: 8,
@@ -306,12 +319,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   titleInput: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#1a1a1a',
     padding: 0,
   },
   contentContainer: {
@@ -323,7 +334,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     lineHeight: 24,
-    color: '#333',
     padding: 0,
   },
   loadingContainer: {
@@ -334,13 +344,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
   },
   voiceRecorderContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: '#fafafa',
   },
 });

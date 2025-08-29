@@ -159,7 +159,7 @@ export default function NotesListScreen() {
   const retryModelDownload = useCallback(() => {
     setModelDownloadError(null);
     validateAndEnsureModel();
-  }, []);
+  }, [validateAndEnsureModel]);
 
   // Refresh notes when screen comes into focus
   useFocusEffect(
